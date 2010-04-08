@@ -1,65 +1,132 @@
 a doSQL proxy.
 
-listens for json-formatted messages:
+listens for, and responds with json-formatted messages. a flexible protocol, sufficient for implementing various models of client library. here's an example conversation:
 
-CLIENT                     SERVER
+joshua@josh4mbp:~/projects/posql/bin$ telnet localhost 9999
+Trying 127.0.0.1...
+Connected to localhost.
+Escape character is '^]'.
+
+{
+   "command":"new-mysql-host",
+   "hostname":"localhost",
+   "port":3306,
+   "user":"test",
+   "password":"test",
+   "handle":"shortRead",
+   "db":"test"
+}
+
+    {"result":"ok"}
+
+    {"notice":"handle_available","handle":"shortRead"}
+
+{
+  "command":"dosql",
+  "sql":"select * from test",
+  "handle":"shortRead"
+}
+
+    {"sthid":"1"}
+
+    {"notice":"data_available","sthid":"1"}
+
+{
+   "command":"fields",
+   "sthid":1
+}
+
+    {"testint": {
+        "field_type":3,
+        "flags":0,
+        "db":"test",
+        "org_name":"testint",
+        "catalog":"def",
+        "name":"testint",
+        "table":"test",
+        "display_length":11,
+        "packet_serial":4,
+        "charset_no":63,
+        "scale":0,
+        "packet_size":48,
+        "org_table":"test"},
+     "password":{
+        "field_type":253,
+        "flags":0,
+        "db":"test",
+        "org_name":"password",
+        "catalog":"def",
+        "name":"password",
+        "table":"test",
+        "display_length":10,
+        "packet_serial":3,
+        "charset_no":8,
+        "scale":0,
+        "packet_size":50,
+        "org_table":"test"},
+    "name":{
+        "field_type":253,
+        "flags":0,
+        "db":"test",
+        "org_name":"name",
+        "catalog":"def",
+        "name":"name",
+        "table":"test",
+        "display_length":10,
+        "packet_serial":2,
+        "charset_no":8,
+        "scale":0,
+        "packet_size":42,
+        "org_table":"test"}
+    }
+
+{
+   "command":"fetchrows",
+   "count": 2,
+   "sthid": 1
+}
+
+    {
+        "sthid":"1",
+        "rows": [
+            ["joshua","badpass","4"]
+        ],
+        "state":"done"
+    }
+
+    {"notice":"data_exhausted","sthid":"1"}
+
+{
+    "command":"dosql",
+    "sql":"insert into test values ('jerry','jerrypass',420)",
+    "handle":"shortRead"
+}
+
+    {"sthid":"2"}
+
 {
    "command":"dosql",
-   "sql":"select * from users",
-   "handle":"longRead"
+   "sql":"select * from test",
+   "handle":"shortRead"
 }
 
-                           { "response":ok",
-                               "sthid": 12345 }
-                           { "response":"try again",
-                             "reason":"not connected" }
-                           { "response":"try again",
-                             "reason":"no such handle" }
-                           { "response":"failure",
-                             "reason":"SQL ERROR..." }
-{
-    "command":"fields",
-    "sthid": 12345
-}
-                           { "fields": ["name","password"] }
+    {"sthid":"3"}
+    {"notice":"data_available","sthid":"3"}
+
 {
     "command":"fetchrows",
     "count": 2,
-    "sthid": 12345
+    "sthid": 3
 }
-                           {
-                               ["joshua","sekret"],["fred","badpass"]
-                           }
 
-cluster control things:
-CLIENT                          SERVER
-{
-    "command":"new-mysql-host",
-    "hostname":"localhost",
-    "port":3306,
-    "user":"test",
-    "password":"test",
-    "handle":"shortRead",
-    "db":"test"
-}
-                            {
-                                "ok"
-                            }
-{
-    "command":"rm-mysql-host",
-    "hostname":"db.example.com",
-    "handle":"longRead",
-}
-                            {
-                                "ok"
-                            }
-{
-    "command":"handle-dump",
-    "handle":"longRead"
-}
-                            (dump of all db's in that handle, and their state)
+    {
+        "sthid":3,
+        "rows":[
+            ["joshua","badpass","4"],
+            ["jerry","jerrypass","420"]
+        ],
+        "state":"done"
+    }
 
-
-messages to server include either a SQL statement, or a command and a startment handle ID.
-the idea is to allow the client side to implement a full DBI object, or at least as much as we use at craigslist. the client library would implement a dosql method that returns an sth object that implements things like fetchrow_array and fetchrow_hashref. additionally, the server would have http and json interfaces that allow modification of pools of mysql servers. 
+    {"notice":"data_exhausted","sthid":"3"}
 
