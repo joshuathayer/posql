@@ -1,0 +1,65 @@
+a doSQL proxy.
+
+listens for json-formatted messages:
+
+CLIENT                     SERVER
+{
+   "command":"dosql",
+   "sql":"select * from users",
+   "handle":"longRead"
+}
+
+                           { "response":ok",
+                               "sthid": 12345 }
+                           { "response":"try again",
+                             "reason":"not connected" }
+                           { "response":"try again",
+                             "reason":"no such handle" }
+                           { "response":"failure",
+                             "reason":"SQL ERROR..." }
+{
+    "command":"fields",
+    "sthid": 12345
+}
+                           { "fields": ["name","password"] }
+{
+    "command":"fetchrows",
+    "count": 2,
+    "sthid": 12345
+}
+                           {
+                               ["joshua","sekret"],["fred","badpass"]
+                           }
+
+cluster control things:
+CLIENT                          SERVER
+{
+    "command":"new-mysql-host",
+    "hostname":"localhost",
+    "port":3306,
+    "user":"test",
+    "password":"test",
+    "handle":"shortRead",
+    "db":"test"
+}
+                            {
+                                "ok"
+                            }
+{
+    "command":"rm-mysql-host",
+    "hostname":"db.example.com",
+    "handle":"longRead",
+}
+                            {
+                                "ok"
+                            }
+{
+    "command":"handle-dump",
+    "handle":"longRead"
+}
+                            (dump of all db's in that handle, and their state)
+
+
+messages to server include either a SQL statement, or a command and a startment handle ID.
+the idea is to allow the client side to implement a full DBI object, or at least as much as we use at craigslist. the client library would implement a dosql method that returns an sth object that implements things like fetchrow_array and fetchrow_hashref. additionally, the server would have http and json interfaces that allow modification of pools of mysql servers. 
+
